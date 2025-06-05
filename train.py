@@ -155,13 +155,32 @@ def main(args):
     # Note that parameter initialization is done within the SiT constructor
     ema = deepcopy(model).to(device)  # Create an EMA of the model for use after training
 
+    # Moved this from below 
+    opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0)
+
     if args.ckpt is not None:
         ckpt_path = args.ckpt
-        state_dict = find_model(ckpt_path)
-        model.load_state_dict(state_dict["model"])
-        ema.load_state_dict(state_dict["ema"])
-        opt.load_state_dict(state_dict["opt"])
-        args = state_dict["args"]
+        # # Comment below out because find_model() seems to behave differently than originally expected. state_dict is the model itself. When we print(state_dict.keys()) it showed keys like: 'pos_embed', 'blocks.0.attn.qkv.weight', ..., 'final_layer.linear.bias'
+        # state_dict = find_model(ckpt_path)
+        # model.load_state_dict(state_dict["model"])
+        # ema.load_state_dict(state_dict["ema"])
+        # opt.load_state_dict(state_dict["opt"])
+        # args = state_dict["args"]
+        checkpoint = torch.load(ckpt_path, map_location=f"cuda:{device}")
+        model.load_state_dict(checkpoint["model"])
+        ema.load_state_dict(checkpoint["ema"])
+        opt.load_state_dict(checkpoint["opt"])
+
+        # Make torch.device from device index for .to()
+        device_obj = torch.device(f"cuda:{device}")
+
+        # Move optimizer tensors to the correct device
+        for state in opt.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device_obj)
+
+        args = checkpoint["args"]
 
     requires_grad(ema, False)
     
@@ -177,8 +196,9 @@ def main(args):
     vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-{args.vae}").to(device)
     logger.info(f"SiT Parameters: {sum(p.numel() for p in model.parameters()):,}")
 
-    # Setup optimizer (we used default Adam betas=(0.9, 0.999) and a constant learning rate of 1e-4 in our paper):
-    opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0)
+    # # Setup optimizer (we used default Adam betas=(0.9, 0.999) and a constant learning rate of 1e-4 in our paper):
+    # opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0)
+    # # Moved to above if args.ckpt is not None
 
     # Setup data:
     transform = transforms.Compose([
