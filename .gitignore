@@ -192,3 +192,17 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+## Specific to this project 
+__pycache__
+wandb
+
+.DS_store
+samples
+results
+pretrained_models
+# output_images/*
+train-failed.py
+train-original.py
+sample.png 
+temp_dataset_lego_resized256.npz
