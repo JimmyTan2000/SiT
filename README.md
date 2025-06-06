@@ -35,7 +35,7 @@ export PROJECT="project name"
 
 Step 2: Run the following command (for a single GPU setup)
 ```bash 
-torchrun --nnodes=1 --nproc_per_node=1 train.py --model SiT-S/8 --data-path output_images --num-classes 1 --epochs 50 --global-batch-size 20 --num-workers 1 --ckpt-every 2000 --cfg-scale 1.0
+torchrun --nnodes=1 --nproc_per_node=1 train.py --model SiT-S/2 --data-path output_images_128 --num-classes 1 --epochs 200 --global-batch-size 50 --num-workers 1 --ckpt-every 2000 --cfg-scale 1.0 --image-size 128 --ckpt-every 2000 --cfg-scale 1.0
 ```
 Note: The dataset is contained in the `output_images` directory and it is generated using [this repository](https://github.com/JimmyTan2000/nerf-image-generation).
 
