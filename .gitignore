@@ -201,7 +201,8 @@ wandb
 samples
 results
 pretrained_models
-# output_images/*
+output_images_128/*
+output_images_256/*
 train-failed.py
 train-original.py
 sample.png 
