@@ -31,6 +31,8 @@ from diffusers.models import AutoencoderKL
 from train_utils import parse_transport_args
 import wandb_utils
 from dataset import SiTDataset
+from torch.amp import autocast
+
 
 #################################################################################
 #                             Training Helper Functions                         #
@@ -263,8 +265,15 @@ def main(args):
                 # Map input images to latent space + normalize latents:
                 x = vae.encode(x).latent_dist.sample().mul_(0.18215)
             model_kwargs = dict(y=y)
-            loss_dict = transport.training_losses(model, x, model_kwargs)
-            loss = loss_dict["loss"].mean()
+
+            # ----------- AMP context for bf16 training -----------
+            with autocast("cuda", dtype=torch.bfloat16):
+                loss_dict = transport.training_losses(model, x, model_kwargs)
+                loss = loss_dict["loss"].mean()
+            # -----------------------------------------------------
+
+            # loss_dict = transport.training_losses(model, x, model_kwargs)
+            # loss = loss_dict["loss"].mean()
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -308,10 +317,16 @@ def main(args):
                     logger.info(f"Saved checkpoint to {checkpoint_path}")
                 dist.barrier()
             
+            # if train_steps % args.sample_every == 0 and train_steps > 0:
+            #     logger.info("Generating EMA samples...")
+            #     sample_fn = transport_sampler.sample_ode() # default to ode sampling
+            #     samples = sample_fn(zs, model_fn, **sample_model_kwargs)[-1]
             if train_steps % args.sample_every == 0 and train_steps > 0:
                 logger.info("Generating EMA samples...")
-                sample_fn = transport_sampler.sample_ode() # default to ode sampling
-                samples = sample_fn(zs, model_fn, **sample_model_kwargs)[-1]
+                sample_fn = transport_sampler.sample_ode()
+                # AMP for sampling/generation (using new API)
+                with autocast("cuda", dtype=torch.bfloat16):
+                    samples = sample_fn(zs, model_fn, **sample_model_kwargs)[-1]
                 dist.barrier()
 
                 if use_cfg: #remove null samples
