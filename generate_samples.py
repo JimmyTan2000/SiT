@@ -16,7 +16,7 @@ image_size = 128        # or 256, whatever you used
 num_classes = 1
 cfg_scale = 1.0
 vae_type = "ema"        # or "mse"
-global_batch_size = 5 # or whatever you used
+sample_batch_size = 8 # or whatever you used
 
 device = "cuda:0"
 
@@ -50,7 +50,7 @@ for ckpt_file in ckpt_files:
     ema_model.eval()
 
     # Setup classifier-free guidance
-    n = global_batch_size
+    n = sample_batch_size
     latent_size = image_size // 8
     zs = torch.randn(n, 4, latent_size, latent_size, device=device)
     ys = torch.zeros(n, dtype=torch.long, device=device)
