@@ -8,7 +8,7 @@ from diffusers.models import AutoencoderKL
 
 # ------ Config ------
 # Replace these with the actual config you used for training
-results_dir = "results/029-SiT-B-8-Linear-velocity-None"  # set to your exp dir!
+results_dir = "results/031-SiT-B-8-Linear-velocity-None"  # set to your exp dir!
 ema_sampling_dir = os.path.join(results_dir, "ema_sampling_checkpoints")
 sample_output_dir = os.path.join(results_dir, "ema_samples")
 model_name = "SiT-B/8"  # your model name
