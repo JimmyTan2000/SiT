@@ -122,14 +122,22 @@ def main(args):
     local_batch_size = int(args.global_batch_size // dist.get_world_size())
 
     # Setup an experiment folder:
+    # Compute experiment_dir and checkpoint_dir on ALL ranks
+    os.makedirs(args.results_dir, exist_ok=True)  # Make results folder (holds all experiment subfolders)
+    experiment_index = len(glob(f"{args.results_dir}/*"))
+    model_string_name = args.model.replace("/", "-")
+    experiment_name = f"{experiment_index:03d}-{model_string_name}-" \
+                    f"{args.path_type}-{args.prediction}-{args.loss_weight}"
+    experiment_dir = f"{args.results_dir}/{experiment_name}"
+    checkpoint_dir = f"{experiment_dir}/checkpoints"
     if rank == 0:
-        os.makedirs(args.results_dir, exist_ok=True)  # Make results folder (holds all experiment subfolders)
-        experiment_index = len(glob(f"{args.results_dir}/*"))
-        model_string_name = args.model.replace("/", "-")  # e.g., SiT-XL/2 --> SiT-XL-2 (for naming folders)
-        experiment_name = f"{experiment_index:03d}-{model_string_name}-" \
-                        f"{args.path_type}-{args.prediction}-{args.loss_weight}"
-        experiment_dir = f"{args.results_dir}/{experiment_name}"  # Create an experiment folder
-        checkpoint_dir = f"{experiment_dir}/checkpoints"  # Stores saved model checkpoints
+        # os.makedirs(args.results_dir, exist_ok=True)  # Make results folder (holds all experiment subfolders)
+        # experiment_index = len(glob(f"{args.results_dir}/*"))
+        # model_string_name = args.model.replace("/", "-")  # e.g., SiT-XL/2 --> SiT-XL-2 (for naming folders)
+        # experiment_name = f"{experiment_index:03d}-{model_string_name}-" \
+        #                 f"{args.path_type}-{args.prediction}-{args.loss_weight}"
+        # experiment_dir = f"{args.results_dir}/{experiment_name}"  # Create an experiment folder
+        # checkpoint_dir = f"{experiment_dir}/checkpoints"  # Stores saved model checkpoints
         os.makedirs(checkpoint_dir, exist_ok=True)
         logger = create_logger(experiment_dir)
         logger.info(f"Experiment directory created at {experiment_dir}")
@@ -319,35 +327,47 @@ def main(args):
             
             # if train_steps % args.sample_every == 0 and train_steps > 0:
             #     logger.info("Generating EMA samples...")
-            #     sample_fn = transport_sampler.sample_ode() # default to ode sampling
-            #     samples = sample_fn(zs, model_fn, **sample_model_kwargs)[-1]
+            #     sample_fn = transport_sampler.sample_ode()
+            #     # AMP for sampling/generation (using new API)
+            #     with autocast("cuda", dtype=torch.bfloat16):
+            #         samples = sample_fn(zs, model_fn, **sample_model_kwargs)[-1]
+            #     dist.barrier()
+
+            #     if use_cfg: #remove null samples
+            #         samples, _ = samples.chunk(2, dim=0)
+            #     samples = vae.decode(samples / 0.18215).sample
+
+            #     save_image(samples, 
+            #                f"samples/sample_{epoch}.png", 
+            #                nrow=int(4),
+            #                normalize=True, value_range=(-1, 1))
+                
+            #     out_samples = torch.zeros((args.global_batch_size, 3, args.image_size, args.image_size), device=device)
+            #     dist.all_gather_into_tensor(out_samples, samples)
+                
+            #     if args.wandb:
+            #         wandb_utils.log_image(out_samples, train_steps)
+            #     logging.info("Generating EMA samples done.")
+
+            #     del sample_fn
+            #     del out_samples
+            #     del samples
+
+            # Save checkpoint for ema sample generation AFTER training
             if train_steps % args.sample_every == 0 and train_steps > 0:
-                logger.info("Generating EMA samples...")
-                sample_fn = transport_sampler.sample_ode()
-                # AMP for sampling/generation (using new API)
-                with autocast("cuda", dtype=torch.bfloat16):
-                    samples = sample_fn(zs, model_fn, **sample_model_kwargs)[-1]
+                if rank == 0:
+                    ema_sampling_dir = os.path.join(experiment_dir, "ema_sampling_checkpoints")
+                    os.makedirs(ema_sampling_dir, exist_ok=True)
+                    ema_ckpt = {
+                        "ema": ema.state_dict(),
+                        "step": train_steps,
+                        "args": args,  # Optionally save args if needed for sampling
+                    }
+                    ema_ckpt_path = os.path.join(ema_sampling_dir, f"ema_sampling_{train_steps:07d}.pt")
+                    torch.save(ema_ckpt, ema_ckpt_path)
+                    logger.info(f"Saved EMA checkpoint for sampling at step {train_steps}")
                 dist.barrier()
 
-                if use_cfg: #remove null samples
-                    samples, _ = samples.chunk(2, dim=0)
-                samples = vae.decode(samples / 0.18215).sample
-
-                save_image(samples, 
-                           f"samples/sample_{epoch}.png", 
-                           nrow=int(4),
-                           normalize=True, value_range=(-1, 1))
-                
-                out_samples = torch.zeros((args.global_batch_size, 3, args.image_size, args.image_size), device=device)
-                dist.all_gather_into_tensor(out_samples, samples)
-                
-                if args.wandb:
-                    wandb_utils.log_image(out_samples, train_steps)
-                logging.info("Generating EMA samples done.")
-
-                del sample_fn
-                del out_samples
-                del samples
 
     model.eval()  # important! This disables randomized embedding dropout
     # do any sampling/FID calculation/etc. with ema (or model) in eval mode ...
