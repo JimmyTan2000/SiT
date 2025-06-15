@@ -199,7 +199,29 @@ wandb
 
 .DS_store
 samples
-results
+# Ignore everything under results
+results/*
+
+# Allow the 031 folder
+!results/031-SiT-B-8-Linear-velocity-None/
+
+# Re-ignore everything under 031
+results/031-SiT-B-8-Linear-velocity-None/*
+
+# Allow checkpoints and the one specific file
+!results/031-SiT-B-8-Linear-velocity-None/checkpoints/
+results/031-SiT-B-8-Linear-velocity-None/checkpoints/*
+!results/031-SiT-B-8-Linear-velocity-None/checkpoints/0040000.pt
+
+# Allow the ema_samples folder and everything inside
+!results/031-SiT-B-8-Linear-velocity-None/ema_samples/
+!results/031-SiT-B-8-Linear-velocity-None/ema_samples/*
+
+# Keep empty ema_sampling_checkpoints folder
+!results/031-SiT-B-8-Linear-velocity-None/ema_sampling_checkpoints/
+results/031-SiT-B-8-Linear-velocity-None/ema_sampling_checkpoints/*
+!results/031-SiT-B-8-Linear-velocity-None/ema_sampling_checkpoints/.gitkeep
+
 pretrained_models
 output_images_128/*
 output_images_256/*
