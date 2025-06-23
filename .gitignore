@@ -207,3 +207,5 @@ train-failed.py
 train-original.py
 sample.png 
 temp_dataset_lego_resized256.npz
+
+datasets/*

@@ -8,7 +8,7 @@ from diffusers.models import AutoencoderKL
 
 # ------ Config ------
 # Replace these with the actual config you used for training
-results_dir = "results/029-SiT-B-8-Linear-velocity-None"  # set to your exp dir!
+results_dir = "results/000-SiT-B-8-Linear-velocity-None"  # set to your exp dir!
 ema_sampling_dir = os.path.join(results_dir, "ema_sampling_checkpoints")
 sample_output_dir = os.path.join(results_dir, "ema_samples")
 model_name = "SiT-B/8"  # your model name
@@ -16,7 +16,7 @@ image_size = 128        # or 256, whatever you used
 num_classes = 1
 cfg_scale = 1.0
 vae_type = "ema"        # or "mse"
-sample_batch_size = 8 # or whatever you used
+sample_batch_size = 16 # or whatever you used
 
 device = "cuda:0"
 
