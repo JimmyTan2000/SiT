@@ -9,7 +9,7 @@ The oiginal SiT repository is about the training and inference on the model base
 - [x] Adapt the training script (train.py) for single class. 
 - [x] Adapt the inference notebook (run_SiT.ipynb) to the trained model. 
 - [ ] Adapt the training script so that it ingest directly the tensors for training instead of jpg files. 
-- [ ] Shift the gaussian mean to poses instead of mean 0. 
+- [x] Shift the gaussian mean to poses instead of mean 0. 
 - [ ] Write a shell script for training using SLURM to make use of the CIP Pool. 
 
 ## Setup
@@ -26,16 +26,10 @@ conda activate SiT
 If you only want to run pre-trained models locally on CPU, you can remove the `cudatoolkit` and `pytorch-cuda` requirements from the environment.yml file.
 
 ## Training SiT
-Step 1: Set the environment variables:
-```bash
-export WANDB_KEY="key"
-export ENTITY="entity name"
-export PROJECT="project name"
-```
 
-Step 2: Run the following command (for a single GPU setup)
+Run the following command (for a single GPU setup)
 ```bash 
-torchrun --nnodes=1 --nproc_per_node=1 train.py --model SiT-S/2 --data-path output_images_128 --num-classes 1 --epochs 200 --global-batch-size 50 --num-workers 1 --ckpt-every 2000 --cfg-scale 1.0 --image-size 128 --ckpt-every 2000 --cfg-scale 1.0
+torchrun --nnodes=1 --nproc_per_node=1 train.py --model SiT-B/8 --num-classes 1 --epochs 300 --global-batch-size 150 --num-workers 1 --ckpt-every 2000 --cfg-scale 1.0 --image-size 128 --sample-every 2000
 ```
 Note: The dataset is contained in the `output_images` directory and it is generated using [this repository](https://github.com/JimmyTan2000/nerf-image-generation).
 
