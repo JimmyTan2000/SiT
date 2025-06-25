@@ -10,16 +10,14 @@ class ModelType(enum.Enum):
     """
     Which type of output the model predicts.
     """
-
-    NOISE = enum.auto()  # the model predicts epsilon
-    SCORE = enum.auto()  # the model predicts \nabla \log p(x)
+    NOISE = enum.auto()     # the model predicts epsilon
+    SCORE = enum.auto()     # the model predicts \nabla \log p(x)
     VELOCITY = enum.auto()  # the model predicts v(x)
 
 class PathType(enum.Enum):
     """
     Which type of path to use.
     """
-
     LINEAR = enum.auto()
     GVP = enum.auto()
     VP = enum.auto()
@@ -28,13 +26,11 @@ class WeightType(enum.Enum):
     """
     Which type of weighting to use.
     """
-
     NONE = enum.auto()
     VELOCITY = enum.auto()
     LIKELIHOOD = enum.auto()
 
 class Transport:
-
     def __init__(
         self,
         *,
@@ -44,6 +40,9 @@ class Transport:
         train_eps,
         sample_eps,
     ):
+        """
+        Initialize the Transport class.
+        """
         path_options = {
             PathType.LINEAR: path.ICPlan,
             PathType.GVP: path.GVPCPlan,
@@ -57,15 +56,15 @@ class Transport:
         self.sample_eps = sample_eps
 
     def prior_logp(self, z):
-        '''
-            Standard multivariate normal prior
-            Assume z is batched
-        '''
+        """
+        Standard multivariate normal prior
+        Assume z is batched
+        """
         shape = th.tensor(z.size())
         N = th.prod(shape[1:])
         _fn = lambda x: -N / 2. * np.log(2 * np.pi) - th.sum(x ** 2) / 2.
         return th.vmap(_fn)(z)
-    
+
     def check_interval(
         self, 
         train_eps, 
@@ -77,6 +76,9 @@ class Transport:
         eval=False,
         last_step_size=0.0,
     ):
+        """
+        Compute time interval for diffusion process.
+        """
         t0 = 0
         t1 = 1
         eps = train_eps if not eval else sample_eps
@@ -97,19 +99,19 @@ class Transport:
 
         return t0, t1
 
-
-    def sample(self, x1):
-        """Sampling x0 & t based on shape of x1 (if needed)
-          Args:
-            x1 - data point; [batch, *dim]
+    def sample(self, x1, noise=None):
         """
-        
-        x0 = th.randn_like(x1)
+        Sampling x0 & t based on shape of x1 (if needed).
+        Allows optional external noise input.
+        Args:
+            x1 - data point; [batch, *dim]
+            noise - custom noise tensor (optional)
+        """
+        x0 = noise if noise is not None else th.randn_like(x1)
         t0, t1 = self.check_interval(self.train_eps, self.sample_eps)
         t = th.rand((x1.shape[0],)) * (t1 - t0) + t0
         t = t.to(x1)
         return t, x0, x1
-    
 
     def training_losses(
         self, 
@@ -117,18 +119,26 @@ class Transport:
         x1, 
         model_kwargs=None
     ):
-        """Loss for training the score model
-        Args:
-        - model: backbone model; could be score, noise, or velocity
-        - x1: datapoint
-        - model_kwargs: additional arguments for the model
         """
-        if model_kwargs == None:
+        Loss for training the score model.
+        Args:
+            model: backbone model; could be score, noise, or velocity
+            x1: datapoint
+            model_kwargs: additional arguments for the model
+        """
+        if model_kwargs is None:
             model_kwargs = {}
-        
-        t, x0, x1 = self.sample(x1)
+        # If provided, use the custom noise instead of standard Gaussian
+        noise = model_kwargs.get('noise', None)
+        t, x0, x1 = self.sample(x1, noise=noise)
         t, xt, ut = self.path_sampler.plan(t, x0, x1)
-        model_output = model(xt, t, **model_kwargs)
+
+        # Remove 'noise' from model_kwargs for model call
+        model_call_kwargs = dict(model_kwargs)
+        if 'noise' in model_call_kwargs:
+            del model_call_kwargs['noise']
+
+        model_output = model(xt, t, **model_call_kwargs)
         B, *_, C = xt.shape
         assert model_output.size() == (B, *xt.size()[1:-1], C)
 
@@ -152,18 +162,16 @@ class Transport:
                 terms['loss'] = mean_flat(weight * ((model_output - x0) ** 2))
             else:
                 terms['loss'] = mean_flat(weight * ((model_output * sigma_t + x0) ** 2))
-                
         return terms
-    
 
-    def get_drift(
-        self
-    ):
-        """member function for obtaining the drift of the probability flow ODE"""
+    def get_drift(self):
+        """
+        Member function for obtaining the drift of the probability flow ODE.
+        """
         def score_ode(x, t, model, **model_kwargs):
             drift_mean, drift_var = self.path_sampler.compute_drift(x, t)
             model_output = model(x, t, **model_kwargs)
-            return (-drift_mean + drift_var * model_output) # by change of variable
+            return (-drift_mean + drift_var * model_output)
         
         def noise_ode(x, t, model, **model_kwargs):
             drift_mean, drift_var = self.path_sampler.compute_drift(x, t)
@@ -189,13 +197,11 @@ class Transport:
             return model_output
 
         return body_fn
-    
 
-    def get_score(
-        self,
-    ):
-        """member function for obtaining score of 
-            x_t = alpha_t * x + sigma_t * eps"""
+    def get_score(self):
+        """
+        Member function for obtaining score of x_t = alpha_t * x + sigma_t * eps
+        """
         if self.model_type == ModelType.NOISE:
             score_fn = lambda x, t, model, **kwargs: model(x, t, **kwargs) / -self.path_sampler.compute_sigma_t(path.expand_t_like_x(t, x))[0]
         elif self.model_type == ModelType.SCORE:
@@ -204,7 +210,6 @@ class Transport:
             score_fn = lambda x, t, model, **kwargs: self.path_sampler.get_score_from_velocity(model(x, t, **kwargs), x, t)
         else:
             raise NotImplementedError()
-        
         return score_fn
 
 
