@@ -6,7 +6,7 @@ import torch
 
 class SiTDataset(Dataset):
 
-    def __init__(self, pth=None, transform=None, image_size=256):   
+    def __init__(self, pth=None, transform=None, image_size=128):   
         self.pth = []
         self.images = []
         self.poses = []
@@ -16,11 +16,16 @@ class SiTDataset(Dataset):
         self.image_size = image_size                      
         self.latent_size = image_size // 8                
 
+
+        self.image_size = image_size                      
+        self.latent_size = image_size // 8                
+
         if pth is not None:
             self.pth = pth
 
             images_list = []
             poses_list = []
+
 
             for filename in os.listdir(pth):
                 filepath = os.path.join(pth, filename)
@@ -35,11 +40,13 @@ class SiTDataset(Dataset):
     def __getitem__(self, index):
         image = self.images[index]
         pose = self.poses[index]
+        gt_pose = pose
 
         if self.transform:
             image = self._to_pil_image(image)
             image = self.transform(image)
 
+        noise = self._make_gaussian_noise(0, 1, (4, self.latent_size, self.latent_size))   
         noise = self._make_gaussian_noise(0, 1, (4, self.latent_size, self.latent_size))   
 
         pose = pose.reshape(1,16)
@@ -50,11 +57,11 @@ class SiTDataset(Dataset):
         pose_block = np.tile(pose, (self.latent_size * self.latent_size // 16, 1)).reshape(self.latent_size, self.latent_size)  # (latent_size, latent_size)
         pose = np.stack([pose_block]*4)   # (4, latent_size, latent_size)   
 
-        pose = pose + noise
+        gaussian_pose = pose + noise
 
-        pose = torch.tensor(pose, dtype=torch.float32)
+        gaussian_pose = torch.tensor(gaussian_pose, dtype=torch.float32)
 
-        return image, pose
+        return image, gaussian_pose, gt_pose, noise
 
     def _to_pil_image(self, image):
         return transforms.ToPILImage()(image)
