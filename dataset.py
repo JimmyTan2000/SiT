@@ -40,7 +40,7 @@ class SiTDataset(Dataset):
             image = self._to_pil_image(image)
             image = self.transform(image)
 
-        noise = self._make_gaussian_noise(0, 1, (4, self.latent_size, self.latent_size))   
+        noise = self._make_gaussian_noise(0, 0.2, (4, self.latent_size, self.latent_size))   
 
         pose = pose.reshape(1,16)
         # Dynamically adjust pose upsampling to latent_size
