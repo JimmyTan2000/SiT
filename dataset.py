@@ -34,27 +34,13 @@ class SiTDataset(Dataset):
 
     def __getitem__(self, index):
         image = self.images[index]
-        pose = self.poses[index]
-
+        pose = self.poses[index]  # shape: (4, 4)
         if self.transform:
             image = self._to_pil_image(image)
             image = self.transform(image)
-
-        noise = self._make_gaussian_noise(0, 0.2, (4, self.latent_size, self.latent_size))   
-
-        pose = pose.reshape(1,16)
-        # Dynamically adjust pose upsampling to latent_size
-        # np.tile(pose, (latent_size, 2)) only works for latent_size=32
-        # To ensure shape: [4, latent_size, latent_size], let's tile pose to fit exactly
-        # We'll create a (4, latent_size, latent_size) pose by repeating the (1,16) across both axes
-        pose_block = np.tile(pose, (self.latent_size * self.latent_size // 16, 1)).reshape(self.latent_size, self.latent_size)  # (latent_size, latent_size)
-        pose = np.stack([pose_block]*4)   # (4, latent_size, latent_size)   
-
-        pose = pose + noise
-
-        pose = torch.tensor(pose, dtype=torch.float32)
-
+        pose = torch.tensor(pose, dtype=torch.float32)  # shape: (4, 4)
         return image, pose
+
 
     def _to_pil_image(self, image):
         return transforms.ToPILImage()(image)

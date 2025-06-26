@@ -27,6 +27,7 @@ from train_utils import parse_transport_args
 import wandb_utils
 from dataset import SiTDataset
 from torch.amp import autocast
+from pose_encoder import PoseEncoder
 
 #################################################################################
 #                             Training Helper Functions                         #
@@ -145,11 +146,17 @@ def main(args):
     ema = deepcopy(model).to(device)  # Create an EMA of the model for use after training
     opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0)
 
+    # Pose encoder
+    pose_encoder = PoseEncoder(latent_size=latent_size, channels=4).to(device)
+    pose_encoder = DDP(pose_encoder, device_ids=[rank])
+    opt.add_param_group({'params': pose_encoder.parameters()})
+
     if args.ckpt is not None:
         ckpt_path = args.ckpt
         checkpoint = torch.load(ckpt_path, map_location=f"cuda:{device}", weights_only=False)
         model.load_state_dict(checkpoint["model"])
         ema.load_state_dict(checkpoint["ema"])
+        pose_encoder.load_state_dict(checkpoint["pose_encoder"])   # <-- ADD THIS LINE
         opt.load_state_dict(checkpoint["opt"])
         args = checkpoint["args"]
         device_obj = torch.device(f"cuda:{device}")
@@ -218,25 +225,21 @@ def main(args):
     for epoch in range(args.epochs):
         sampler.set_epoch(epoch)
         logger.info(f"Beginning epoch {epoch}...")
-        for x, zs in loader:
+        for x, pose in loader:
             x = x.to(device)
-            zs = zs.to(device)
-            y = torch.IntTensor([0]).to(device)
-            n = ys.size(0)
+            pose = pose.to(device)  # (batch, 4, 4)
 
-            if use_cfg:
-                zs = torch.cat([zs, zs], 0)
-                y_null = torch.tensor([1] * n, device=device)
-                ys = torch.cat([ys, y_null], 0)
-                sample_model_kwargs = dict(y=ys, cfg_scale=args.cfg_scale)
-                model_fn = ema.forward_with_cfg
-            else:
-                sample_model_kwargs = dict(y=ys)
-                model_fn = ema.forward
+            # 1. Encode pose to latent, add noise
+            pose_latent = pose_encoder(pose)  # (batch, 4, latent_size, latent_size)
+            noise = torch.randn_like(pose_latent) * 1  # <--- THIS IS THE GAUSSIAN NOISE
+            pose_noisy = pose_latent + noise
 
+            # 2. VAE encode images
             with torch.no_grad():
                 x_latent = vae.encode(x).latent_dist.sample().mul_(0.18215)
-            model_kwargs = dict(y=y, noise=zs)  # <--- Pass noisy pose as noise
+
+            y = torch.zeros(x.shape[0], dtype=torch.long, device=device)
+            model_kwargs = dict(y=y, noise=pose_noisy)
 
             with autocast("cuda", dtype=torch.bfloat16):
                 loss_dict = transport.training_losses(model, x_latent, model_kwargs)
@@ -250,6 +253,7 @@ def main(args):
             running_loss += loss.item()
             log_steps += 1
             train_steps += 1
+
             if train_steps % args.log_every == 0:
                 torch.cuda.synchronize()
                 end_time = time()
@@ -273,6 +277,7 @@ def main(args):
                         "model": model.module.state_dict(),
                         "ema": ema.state_dict(),
                         "opt": opt.state_dict(),
+                        "pose_encoder": pose_encoder.module.state_dict(),  # <-- Pose encoder weights added
                         "args": args
                     }
                     checkpoint_path = f"{checkpoint_dir}/{train_steps:07d}.pt"
