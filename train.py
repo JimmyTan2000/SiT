@@ -176,11 +176,10 @@ def main(args):
     transform = transforms.Compose([
         transforms.Resize(args.image_size),
         transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, args.image_size)),
-        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True)
+        transforms.Normalize(mean=[0, 0, 0], std=[1, 1, 1], inplace=True)
     ])
-    dataset = SiTDataset("datasets/", transform=transform, image_size=args.image_size)
+    dataset = SiTDataset("data/chair_data/train", transform=transform, image_size=args.image_size)
     sampler = DistributedSampler(
         dataset,
         num_replicas=dist.get_world_size(),
@@ -218,7 +217,7 @@ def main(args):
     for epoch in range(args.epochs):
         sampler.set_epoch(epoch)
         logger.info(f"Beginning epoch {epoch}...")
-        for x, zs in loader:
+        for x, zs, _, _ in loader:
             x = x.to(device)
             zs = zs.to(device)
             y = torch.IntTensor([0]).to(device)
@@ -250,6 +249,8 @@ def main(args):
             running_loss += loss.item()
             log_steps += 1
             train_steps += 1
+            print(train_steps)
+            
             if train_steps % args.log_every == 0:
                 torch.cuda.synchronize()
                 end_time = time()
@@ -268,6 +269,7 @@ def main(args):
                 start_time = time()
 
             if train_steps % args.ckpt_every == 0 and train_steps > 0:
+                print("current epoch:", epoch)
                 if rank == 0:
                     checkpoint = {
                         "model": model.module.state_dict(),
@@ -280,19 +282,19 @@ def main(args):
                     logger.info(f"Saved checkpoint to {checkpoint_path}")
                 dist.barrier()
 
-            if train_steps % args.sample_every == 0 and train_steps > 0:
-                if rank == 0:
-                    ema_sampling_dir = os.path.join(experiment_dir, "ema_sampling_checkpoints")
-                    os.makedirs(ema_sampling_dir, exist_ok=True)
-                    ema_ckpt = {
-                        "ema": ema.state_dict(),
-                        "step": train_steps,
-                        "args": args,
-                    }
-                    ema_ckpt_path = os.path.join(ema_sampling_dir, f"ema_sampling_{train_steps:07d}.pt")
-                    torch.save(ema_ckpt, ema_ckpt_path)
-                    logger.info(f"Saved EMA checkpoint for sampling at step {train_steps}")
-                dist.barrier()
+#            if train_steps % args.sample_every == 0 and train_steps > 0:
+ #               if rank == 0:
+  #                  ema_sampling_dir = os.path.join(experiment_dir, "ema_sampling_checkpoints")
+   #                 os.makedirs(ema_sampling_dir, exist_ok=True)
+    #                ema_ckpt = {
+     #                   "ema": ema.state_dict(),
+      #                  "step": train_steps,
+       #                 "args": args,
+        #            }
+         #           ema_ckpt_path = os.path.join(ema_sampling_dir, f"ema_sampling_{train_steps:07d}.pt")
+          #          torch.save(ema_ckpt, ema_ckpt_path)
+           #         logger.info(f"Saved EMA checkpoint for sampling at step {train_steps}")
+            #    dist.barrier()
 
     model.eval()
     logger.info("Done!")
