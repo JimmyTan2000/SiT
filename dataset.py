@@ -4,6 +4,7 @@ import os
 from torchvision import transforms
 import torch
 
+
 class SiTDataset(Dataset):
     def __init__(self, pth=None, transform=None, image_size=128):   
         self.pth = []
@@ -15,8 +16,10 @@ class SiTDataset(Dataset):
         self.image_size = image_size                      
         self.latent_size = image_size // 8                
 
-        self.pose_mean = None
-        self.pose_std = None
+        self.rotation_mean = None
+        self.rotation_std = None
+        self.translation_mean = None
+        self.translation_std = None
 
         if pth is not None:
             self.pth = pth
@@ -32,15 +35,39 @@ class SiTDataset(Dataset):
 
             self.focal_length = loaded["focal"]
             self.images = np.concatenate(images_list, axis=0)
-            self.poses = np.concatenate(poses_list, axis=0)  # shape: (N, 4, 4)
+            self.poses = np.concatenate(poses_list, axis=0) 
 
             self.compute_pose_stats()
 
     def compute_pose_stats(self):
-        poses_flat = self.poses.reshape(len(self.poses), -1)  # shape: (N, 16)
-        self.pose_mean = poses_flat.mean(axis=0)              # shape: (16,)
-        self.pose_std = poses_flat.std(axis=0) + 1e-8         # avoid division by zero
+        rotations = self.poses[:, :3, :3].reshape(len(self.poses), -1)
+        translations = self.poses[:, :3, 3]                             
 
+        self.rotation_mean = rotations.mean(axis=0)
+        self.rotation_std = rotations.std(axis=0) + 1e-8 
+
+        self.translation_mean = translations.mean(axis=0)
+        self.translation_std = translations.std(axis=0) + 1e-8
+
+    def standardize_pose(self, pose):
+        pose_flat = pose.reshape(-1)
+        R_indices = [0, 1, 2, 4, 5, 6, 8, 9, 10]
+        t_indices = [3, 7, 11]
+    
+        R = pose_flat[R_indices]
+        t = pose_flat[t_indices]
+    
+        R = (R - self.rotation_mean) / self.rotation_std
+        t = (t - self.translation_mean) / self.translation_std
+
+        
+        result = np.zeros(16, dtype=np.float32)
+        result[R_indices] = R
+        result[t_indices] = t
+        result[12:] = [0, 0, 0, 1]
+    
+        return result
+ 
     def __getitem__(self, index):
         image = self.images[index]
         pose = self.poses[index]  # shape: (4, 4)
@@ -50,9 +77,8 @@ class SiTDataset(Dataset):
             image = self._to_pil_image(image)
             image = self.transform(image)
 
-        pose_flat = pose.reshape(-1) 
-        pose_normalized = (pose_flat - self.pose_mean) / self.pose_std
-
+        standardized_pose = self.standardize_pose(pose)
+        
         latent_size = self.latent_size
         pose_tensor = np.zeros((4, latent_size, latent_size), dtype=np.float32)
 
@@ -61,7 +87,7 @@ class SiTDataset(Dataset):
         for c in range(4):
             for i in range(2):
                 for j in range(2):
-                    val = pose_normalized[c * 4 + i * 2 + j]
+                    val = standardized_pose[c * 4 + i * 2 + j]
                     pose_tensor[c, i*quadrant_size:(i+1)*quadrant_size,
                                    j*quadrant_size:(j+1)*quadrant_size] = val
         
@@ -69,7 +95,7 @@ class SiTDataset(Dataset):
         gaussian_pose = pose_tensor + noise
         gaussian_pose = torch.tensor(gaussian_pose, dtype=torch.float32)
 
-        return image, gaussian_pose, gt_pose, noise
+        return image, gaussian_pose, gt_pose, torch.Tensor(noise)
 
     def _to_pil_image(self, image):
         return transforms.ToPILImage()(image)
