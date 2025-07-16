@@ -249,7 +249,7 @@ def main(args):
             running_loss += loss.item()
             log_steps += 1
             train_steps += 1
-            print(train_steps)
+            # print(train_steps)
             
             if train_steps % args.log_every == 0:
                 torch.cuda.synchronize()
