@@ -2,7 +2,7 @@
 This is the repository of the Image and Video Synthesis SoSe 2025 Practical for Pose Estimation + Novel View Synthesis. 
 
 ## What has been modified? 
-The oiginal SiT repository is about the training and inference on the model based on the ImageNet 256 x 256 dataset that contains 1000 classes. We have adapted it to perform the following:
+We have adapted the original SiT repository to perform the following:
 
 - [x] Adapt the training script (train.py) for single class.  
 - [x] Adapt the training script so that it ingest directly the numoy arrays for training instead of jpg files (using dataset.py). 
