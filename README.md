@@ -41,10 +41,10 @@ torchrun --nnodes=1 --nproc_per_node=1 train.py --model SiT-B/8 --num-classes 1 
 ```
 
 ## Test your model after training
-You can use the trained model to generate images using the poses with the `model_inference.py` script. It will output both the generated images as well as the ground truth image for comparison to the specified directory
+You can use the trained model to generate images using the poses with the `model_inference.py` script. It will output both the generated images as well as the ground truth images for comparison to the specified directory.
 
 ### Alternative testing (depreciated)
-Before the implementation of `model_inference.py` script, the ema sampling generation in `train.py` is moved out to a seperate script `generate_samples.py`. We have commented the ema checkpoint saving in the `train.py`. Stated below is the commented out code: 
+Before the implementation of `model_inference.py` script, the ema sampling generation in `train.py` is moved out to a separate script `generate_samples.py`. We have commented out the ema checkpoint saving code in the `train.py`. Stated below is the commented-out code: 
 ```python
 if train_steps % args.sample_every == 0 and train_steps > 0:
     if rank == 0:
