@@ -5,7 +5,7 @@ This is the repository of the Image and Video Synthesis SoSe 2025 Practical for 
 We have adapted the original SiT repository to perform the following:
 
 - [x] Adapt the training script (train.py) for single class.  
-- [x] Adapt the training script so that it ingest directly the numoy arrays for training instead of jpg files (using dataset.py). 
+- [x] Adapt the training script so that it ingest directly the numpy arrays for training instead of jpg files (using dataset.py). 
 - [x] Shift the gaussian mean to poses instead of mean 0. 
 - [x] Implement bf16 training to save CUDA memory. 
 - [x] Separate the evaluation from the training loop to prevent CUDA out of memory. 
