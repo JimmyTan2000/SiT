@@ -2,15 +2,17 @@
 This is the repository of the Image and Video Synthesis SoSe 2025 Practical for Pose Estimation + Novel View Synthesis. 
 
 ## What has been modified? 
-The oiginal SiT repository is about the training and inference on the model based on the ImageNet 256 x 256 dataset that contains 1000 classes. We have adapted it to train and generate images of a single class. This is not the final version yet so there is a TODO list to show what has been done and what hasn't. 
+The oiginal SiT repository is about the training and inference on the model based on the ImageNet 256 x 256 dataset that contains 1000 classes. We have adapted it to perform the following:
 
-### TODO List 
-- [x] Write a script to convert generated tensors into JPG (experimental only). [Refer to this notebook.](https://github.com/JimmyTan2000/nerf-image-generation)
-- [x] Adapt the training script (train.py) for single class. 
-- [x] Adapt the inference notebook (run_SiT.ipynb) to the trained model. 
-- [ ] Adapt the training script so that it ingest directly the tensors for training instead of jpg files. 
+- [x] Adapt the training script (train.py) for single class.  
+- [x] Adapt the training script so that it ingest directly the tensors for training instead of jpg files (using dataset.py). 
 - [x] Shift the gaussian mean to poses instead of mean 0. 
-- [ ] Write a shell script for training using SLURM to make use of the CIP Pool. 
+- [x] Implement bf16 training to save CUDA memory. 
+- [x] Separate the evaluation from the training loop to prevent CUDA out of memory. 
+- [x] Implement evaluation of the trained model (evaluate.ipynb). 
+- [x] Create turntable dataset for model evaluation (refer to [this repository](https://github.com/willisma/SiT)). 
+- [x] Implement notebook for interpolation experiment (interpolation_experiment.ipynb) with the trained model. 
+- [x] Implement flow reversal. See "Test Invertibility of SiT" part in `evaluate.ipynb` and "Pose Recovery and Error Evaluation" part in `scene_prediction_loop.ipynb`.
 
 ## Setup
 Step 1: Download and set up the repo:
@@ -29,19 +31,8 @@ If you only want to run pre-trained models locally on CPU, you can remove the `c
 
 Run the following command (for a single GPU setup)
 ```bash 
-torchrun --nnodes=1 --nproc_per_node=1 train.py --model SiT-B/8 --num-classes 1 --epochs 300 --global-batch-size 150 --num-workers 1 --ckpt-every 2000 --cfg-scale 1.0 --image-size 128 --sample-every 2000
+torchrun --nnodes=1 --nproc_per_node=1 train.py --model SiT-B/8 --num-classes 1 --epochs 300 --global-batch-size 150 --num-workers 0 --ckpt-every 4000 --cfg-scale 1.0 --image-size 128
 ```
 Note: The dataset is contained in the `output_images` directory and it is generated using [this repository](https://github.com/JimmyTan2000/nerf-image-generation).
-
-### Additional commands: 
-- `Interpolant settings (Haven't tried before)`:
-We also support different choices of interpolant and model predictions. For example, to launch SiT-XL/2 (256x256) with Linear interpolant and noise prediction:
-```bash
-torchrun --nnodes=1 --nproc_per_node=1 train.py --model SiT-XL/2 --data-path /path/to/imagenet/train --path-type Linear --prediction noise
-```
-- `Resume training:`To resume training from custom checkpoint:
-```bash
-torchrun --nnodes=1 --nproc_per_node=1 train.py --model SiT-L/2 --data-path /path/to/imagenet/train --ckpt /path/to/model.pt
-```
 
 **For more details, please refer to the original [SiT repository](https://github.com/willisma/SiT) as this is still incomplete.** 
