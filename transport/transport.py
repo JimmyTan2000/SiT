@@ -351,8 +351,7 @@ class Sampler:
         sampling_method="dopri5",
         num_steps=50,
         atol=1e-6,
-        rtol=1e-3,
-        reverse
+        rtol=1e-3
     ):
         #This is the model prediction i. e. drift = flow(x, t)
         drift = self.drift
@@ -363,7 +362,7 @@ class Sampler:
         self.transport.sample_eps, #small epsilon for stability in sampling
         sde=False,
         eval=True,
-        reverse=reverse,
+        reverse=False, #Reverse needs to be false here, however, the ode still integrates backwards
         last_step_size=0.0)
 
         _ode = ode(
