@@ -39,6 +39,7 @@ Run the following command (for a single GPU setup)
 ```bash 
 torchrun --nnodes=1 --nproc_per_node=1 train.py --model SiT-B/8 --num-classes 1 --epochs 300 --global-batch-size 150 --num-workers 0 --ckpt-every 2000 --cfg-scale 1.0 --image-size 128
 ```
+`Note`: Our dataset is generated using [this repository](https://github.com/JimmyTan2000/nerf-image-generation).
 
 ## Test your model after training
 You can use the trained model to generate images using the poses with the `model_inference.py` script. It will output both the generated images as well as the ground truth images for comparison to the specified directory.
@@ -73,10 +74,8 @@ The notebook `scene_prediction_loop.ipynb` test the model further by:
 2. Pose Estimation: Estimate the pose given the new scene
 3. Second View synthesis: Predict scene again with estimated pose
 
-We have included our presentation slide `Practical Image and Video Synthesis Presentation.pdf` in our repository, hoping to clarify potential questions. 
-
-
-Note: Our dataset is generated using [this repository](https://github.com/JimmyTan2000/nerf-image-generation).
+## Additional materials
+We have included our presentation slide `Practical Image and Video Synthesis Presentation.pdf`, as well as our report `Practical_Image_and_Video_Synthesis_Report.pdf` in our repository, hoping to clarify potential questions. 
 
 ## Contributors (equal contributions)
 - Jimmy Tan 
