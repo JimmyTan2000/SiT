@@ -28,7 +28,7 @@ ckpt_files = sorted([f for f in os.listdir(ema_sampling_dir) if f.endswith('.pt'
 vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-{vae_type}").to(device)
 vae.eval()
 
-# (Transport/sampler: use your config)
+# (Transport/sampler)
 # If you need to match specific settings, you may have to reload them from args
 transport = create_transport(
     "Linear", "velocity", None, None, None  # replace with actual args if needed
