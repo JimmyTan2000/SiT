@@ -10,7 +10,7 @@ We have adapted the original SiT repository to perform the following:
 - [x] Implement bf16 training to save CUDA memory. 
 - [x] Separate the evaluation from the training loop to prevent CUDA out of memory. 
 - [x] Implement evaluation of the trained model (evaluate.ipynb). 
-- [x] Create turntable dataset for model evaluation (refer to [this repository](https://github.com/willisma/SiT)). 
+- [x] Create turntable dataset for model evaluation (refer to [this repository](https://github.com/JimmyTan2000/nerf-image-generation)). 
 - [x] Implement notebook for interpolation experiment (interpolation_experiment.ipynb) with the trained model. 
 - [x] Implement flow reversal. See "Test Invertibility of SiT" part in `evaluate.ipynb` and "Pose Recovery and Error Evaluation" part in `scene_prediction_loop.ipynb`.
 
